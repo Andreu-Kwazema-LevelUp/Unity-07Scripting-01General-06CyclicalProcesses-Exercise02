@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Collections;
 using UnityEngine;
 
 public class ObjectScaler : MonoBehaviour
 {
+    #region Private Fields
+
     [SerializeField]
     private int _loops;
 
@@ -12,17 +15,23 @@ public class ObjectScaler : MonoBehaviour
     [SerializeField]
     private float _transition;
 
-    private PointsMovement _pointsMovement;
 
     private bool _scale;
 
-    private Vector3 _currentValue;
+    private int _steps;
 
     private float _transitionStep;
 
-    private int _steps;
-
     private float _direction = 1;
+
+    private Vector3 _currentValue;
+
+    private PointsMovement _pointsMovement;
+
+    #endregion
+
+
+    #region Unity Lifecycle
 
     private void Awake()
     {
@@ -38,38 +47,63 @@ public class ObjectScaler : MonoBehaviour
         _steps = 0;
 
         _scale = false;
+
+        StartCoroutine(CheckStartScalerLoop());
     }
 
-    void Update()
+    #endregion
+
+
+    #region Corroutines
+
+    IEnumerator ScalerLoop()
     {
-        if (_pointsMovement.Loops % _loops == 0)
+        while (_scale)
         {
-            _scale = true;
-        }
-
-        if (_scale && _steps < 1)
-        {
-
-            _transitionStep += _direction * Time.deltaTime;
-
-            float step = Math.Min(_transitionStep / _transition, 1);
-
-            transform.localScale = Vector3.Lerp(_currentValue, _currentValue * _scaleMultiplier, step);
-
-            if (step >= 1)
+            if (_scale && _steps < 1)
             {
-                _direction = -_direction;
+                _transitionStep += _direction * Time.deltaTime;
+
+                float step = Math.Min(_transitionStep / _transition, 1);
+
+                transform.localScale = Vector3.Lerp(_currentValue, _currentValue * _scaleMultiplier, step);
+
+                if (step >= 1)
+                {
+                    _direction = -_direction;
+                }
+                else if (step <= 0)
+                {
+                    _direction = -_direction;
+
+                    _scale = false;
+
+                    _transitionStep = 0;
+
+                    _steps = 0;
+
+                    StartCoroutine(CheckStartScalerLoop());
+                }
             }
-            else if (step <= 0)
-            {
-                _direction = -_direction;
 
-                _scale = false;
-
-                _transitionStep = 0;
-
-                _steps = 0;
-            }
+            yield return null;
         }
     }
+
+
+    IEnumerator CheckStartScalerLoop()
+    {
+        while (!_scale)
+        {
+            if (_pointsMovement.Loops % _loops == 0)
+            {
+                _scale = true;
+                StartCoroutine(ScalerLoop());
+            }
+
+            yield return null;
+        }
+    }
+
+    #endregion
 }

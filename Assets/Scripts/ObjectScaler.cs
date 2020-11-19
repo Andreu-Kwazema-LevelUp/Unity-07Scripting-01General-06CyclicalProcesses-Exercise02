@@ -15,16 +15,9 @@ public class ObjectScaler : MonoBehaviour
     [SerializeField]
     private float _transition;
 
-
-    private bool _scale;
-
     private int _steps;
 
-    private float _transitionStep;
-
-    private float _direction = 1;
-
-    private Vector3 _currentValue;
+    private int _currentLoop;
 
     private PointsMovement _pointsMovement;
 
@@ -40,15 +33,9 @@ public class ObjectScaler : MonoBehaviour
 
     private void Start()
     {
-        _currentValue = transform.localScale;
-
-        _transitionStep = 0;
-
         _steps = 0;
 
-        _scale = false;
-
-        StartCoroutine(CheckStartScalerLoop());
+        StartCoroutine(DoCheckLoops());
     }
 
     #endregion
@@ -56,54 +43,42 @@ public class ObjectScaler : MonoBehaviour
 
     #region Corroutines
 
-    IEnumerator ScalerLoop()
+    private IEnumerator DoCheckLoops()
     {
-        while (_scale)
+        yield return new WaitUntil(() => _pointsMovement.Loops - _currentLoop >= _loops);
+
+        yield return StartCoroutine(DoPingPong());
+
+        _currentLoop = _pointsMovement.Loops;
+
+        StartCoroutine(DoCheckLoops());
+    }
+
+    private IEnumerator DoPingPong()
+    {
+        Vector3 current = transform.localScale;
+        Vector3 next = current * _scaleMultiplier;
+
+        yield return StartCoroutine(DoTransition(current, next));
+        yield return StartCoroutine(DoTransition(next, current));
+    }
+
+    private IEnumerator DoTransition(Vector3 current, Vector3 next)
+    {
+        float transitionStep = 0;
+
+        while (_transition > transitionStep)
         {
-            if (_scale && _steps < 1)
-            {
-                _transitionStep += _direction * Time.deltaTime;
+            transitionStep += Time.deltaTime;
 
-                float step = Math.Min(_transitionStep / _transition, 1);
+            float step = transitionStep / _transition;
 
-                transform.localScale = Vector3.Lerp(_currentValue, _currentValue * _scaleMultiplier, step);
-
-                if (step >= 1)
-                {
-                    _direction = -_direction;
-                }
-                else if (step <= 0)
-                {
-                    _direction = -_direction;
-
-                    _scale = false;
-
-                    _transitionStep = 0;
-
-                    _steps = 0;
-
-                    StartCoroutine(CheckStartScalerLoop());
-                }
-            }
+            transform.localScale = Vector3.Lerp(current, next, step);
 
             yield return null;
         }
     }
 
-
-    IEnumerator CheckStartScalerLoop()
-    {
-        while (!_scale)
-        {
-            if (_pointsMovement.Loops % _loops == 0)
-            {
-                _scale = true;
-                StartCoroutine(ScalerLoop());
-            }
-
-            yield return null;
-        }
-    }
 
     #endregion
 }
